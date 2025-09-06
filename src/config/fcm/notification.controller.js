@@ -1,5 +1,4 @@
 const fcmTokenModel = require("../../models/fcmTokenModel");
-const { sendNotificationToDevice } = require("../../services/fcmService");
 
 exports.sendKycApprovalNotification = async (userId) => {
   const userTokens = await fcmTokenModel.find({ userId });

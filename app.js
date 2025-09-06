@@ -23,7 +23,6 @@ const privacyPolicyRouter = require("./src/routes/privacyPolicyRoute");
 const QRUPIRouter = require("./src/routes/UpiAndQrRoute");
 const emiRouters = require("./src/routes/testingRoute");
 const whatsAppRouter = require("./src/routes/whatappRoute");
-const fcmRouter = require("./src/routes/fcmRouter");
 const notificationRouter = require("./src/routes/notificationRouter");
 // require("./src/config/cron-job/nodeCron");
 const app = express();
@@ -89,7 +88,6 @@ app.use(`${baseURI}privacy`, privacyPolicyRouter);
 app.use(`${baseURI}upi`, QRUPIRouter);
 app.use(`${baseURI}emiSettle`, emiRouters);
 app.use(`${baseURI}whatsapp`, whatsAppRouter);
-app.use(`${baseURI}fcm`, fcmRouter);
 app.use(`${baseURI}notification`, notificationRouter);
 // ----------------------------
 // 404 Handler
