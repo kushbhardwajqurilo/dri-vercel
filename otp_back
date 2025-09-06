@@ -1,0 +1,135 @@
+exports.sendOTP = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // ✅ Phone validation
+    if (!phone || !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit phone number is required",
+      });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000);
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry
+
+    let user = await User.findOne({ phone: phone });
+    if (!user) {
+      user = await User.create({ phone: phone });
+    }
+
+    user.otp = Number(otp);
+    user.otpExpire = otpExpiry;
+    await user.save();
+
+    const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${phone}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
+
+    const response = await axios.get(apiUrl);
+    console.log("SMS API Response:", response.data);
+
+    if (response.data.type === "SUCCESS") {
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully",
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP",
+        error: response.data,
+      });
+    }
+  } catch (err) {
+    console.error("OTP sending error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+// Verify OTP
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+
+    // Basic validation
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP are required",
+      });
+    }
+
+    // Get user from DB
+    let user = await User.findOne({
+      $or: [{ phone }, { aternatePhone: phone }],
+    });
+
+    if (!user) {
+      user = await User.create({ phone });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Failed to verify user.",
+        });
+      }
+    }
+
+    // OTP & expiry check
+    if (!user.otp || !user.otpExpire || Date.now() > user.otpExpire) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired or not found",
+      });
+    }
+
+    if (Number(user.otp) !== Number(otp)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    // ✅ OTP correct → clear OTP fields
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
+
+    // Create JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: "user" },
+      process.env.SecretKey,
+      { expiresIn: "7d" }
+    );
+
+    // ✅ Check KYC status
+    const isKycApprove = await KYCmodel.findOne({
+      $or: [{ alternatePhone: phone }, { phone }],
+    });
+
+    if (isKycApprove) {
+      return res.status(200).json({
+        success: true,
+        message: "Login successful",
+        token,
+        status: isKycApprove.status, // pending / approved / rejected
+      });
+    }
+
+    // New user (no KYC yet)
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      status: "new",
+      token,
+    });
+  } catch (err) {
+    console.error("verifyOTP error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
