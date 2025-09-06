@@ -1,7 +1,8 @@
-require("./src/database/DB");
+const connectDB = require("./src/database/DB");
 
 if (process.env.VERCEL) {
-  // 👉 On Vercel: just export the app (no listen, no cluster)
+  // 👉 On Vercel: connect DB, then export app
+  connectDB();
   module.exports = require("./app");
 } else {
   // 👉 Local / VPS: run with cluster + listen
@@ -21,8 +22,10 @@ if (process.env.VERCEL) {
       cluster.fork();
     });
   } else {
-    http.createServer(app).listen(PORT, () => {
-      console.log(`Worker ${process.pid} running on port ${PORT}`);
+    connectDB().then(() => {
+      http.createServer(app).listen(PORT, () => {
+        console.log(`Worker ${process.pid} running on port ${PORT}`);
+      });
     });
   }
 }
