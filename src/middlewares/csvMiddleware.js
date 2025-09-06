@@ -6,7 +6,7 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadPath =
       process.env.VERCEL_ENV === "production"
-        ? "/temp"
+        ? "/tmp"
         : path.join(__dirname, "../../public/uploads/");
     cb(null, uploadPath);
   },
