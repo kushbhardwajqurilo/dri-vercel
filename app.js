@@ -69,6 +69,11 @@ app.use(
 // ----------------------------
 // API Routes
 // ----------------------------
+
+app.get("/", async (req, res) => {
+  res.status(200).json({ success: true, message: "server working" });
+});
+
 const baseURI = "/api/v1/";
 
 app.use(`${baseURI}admin`, adminRouter);
