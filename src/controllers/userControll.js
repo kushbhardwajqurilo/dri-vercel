@@ -10,6 +10,7 @@ const FcmToken = require("../models/fcmTokenModel");
 const {
   sendNotificationToSingleUser,
 } = require("../config/expo-push-notification/expoNotification");
+const { default: axios } = require("axios");
 const otpStore = {};
 exports.sendOTP = async (req, res) => {
   try {
