@@ -1,17 +1,30 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 
 const UploadSingle = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath =
-      process.env.VERCEL_ENV === "production"
-        ? "/tmp"
-        : path.join(__dirname, "../../public/uploads");
+    let uploadPath;
+
+    if (process.env.VERCEL_ENV === "production") {
+      // ✅ On Vercel, only /tmp is writable
+      uploadPath = "/tmp";
+    } else {
+      // ✅ Local uploads
+      uploadPath = path.join(__dirname, "../../public/uploads");
+
+      // Ensure directory exists
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+    }
+
     cb(null, uploadPath);
   },
+
   filename: (req, file, cb) => {
-    const unisuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unisuffix + "-" + file.originalname);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
   },
 });
 
