@@ -15,79 +15,168 @@ exports.sendOTP = async (req, res) => {
   try {
     const { phone } = req.body;
 
-    if (!phone) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Phone number is required" });
+    // ✅ Phone validation
+    if (!phone || !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit phone number is required",
+      });
     }
 
-    // OTP generate
     const otp = Math.floor(1000 + Math.random() * 9000);
-    otpStore[phone] = {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes expiry
-    };
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry
 
-    // Check user
-    let user = await User.findOne({ phone });
-
+    let user = await User.findOne({ phone: phone });
     if (!user) {
-      user = await User.create({ phone });
-      if (!user) {
-        return res.status(500).json({
-          success: false,
-          message:
-            "Something went wrong while processing your request. Please try again.",
-        });
-      }
+      user = await User.create({ phone: phone });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: user ? "OTP sent successfully" : "OTP generated successfully",
-      otp,
-      userId: user._id,
-    });
+    user.otp = Number(otp);
+    user.otpExpire = otpExpiry;
+    await user.save();
+
+    const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${phone}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
+
+    const response = await axios.get(apiUrl);
+    console.log("SMS API Response:", response.data);
+
+    if (response.data.type === "SUCCESS") {
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully",
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP",
+        error: response.data,
+      });
+    }
   } catch (err) {
+    console.error("OTP sending error:", err);
     return res.status(500).json({
       success: false,
-      message: "Server error, please try again later.",
+      message: "Internal server error",
       error: err.message,
     });
   }
 };
-
 // Verify OTP
+// exports.verifyOTP = async (req, res) => {
+//   try {
+//     const { phone, otp, expoToken } = req.body;
+//     if (!phone || !otp) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Phone & OTP required" });
+//     }
+//     // 🔹 OTP validation logic (same as before)...
+
+//     let user = await User.findOne({ phone });
+//     if (!user) {
+//       user = await User.create({ phone });
+//     }
+
+//     // 🔹 Save / Update FCM token
+//     if (expoToken) {
+//       await saveExpoToken(user._id, expoToken);
+//     }
+
+//     // 🔹 Create JWT
+//     const token = jwt.sign(
+//       { userId: user._id, role: "user" },
+//       process.env.SecretKey,
+//       {
+//         expiresIn: "7d",
+//       }
+//     );
+
+//     delete otpStore[phone];
+//     const isKycApprove = await KYCmodel.findOne({
+//       $or: [{ alternatePhone: phone }, { phone }],
+//     });
+
+//     if (isKycApprove) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Login successful",
+//         token,
+//         status: isKycApprove.status, // pending / approved / rejected
+//       });
+//     }
+//     const check = await sendNotificationToSingleUser(
+//       expoToken,
+//       "Login Successfully",
+//       "Debt Relief India"
+//     );
+//     return res.status(200).json({
+//       success: true,
+//       message: "Login successful",
+//       token,
+//       status: "new",
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ success: false, message: err.message });
+//   }
+// };
 exports.verifyOTP = async (req, res) => {
   try {
-    const { phone, otp, expoToken } = req.body;
-    if (!phone || !otp) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Phone & OTP required" });
-    }
-    // 🔹 OTP validation logic (same as before)...
+    const { phone, otp, FcmToken } = req.body;
 
-    let user = await User.findOne({ phone });
+    // Basic validation
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP are required",
+      });
+    }
+
+    // Get user from DB
+    let user = await User.findOne({
+      $or: [{ phone }, { aternatePhone: phone }],
+    });
+
     if (!user) {
       user = await User.create({ phone });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Failed to verify user.",
+        });
+      }
     }
 
-    // 🔹 Save / Update FCM token
+    // OTP & expiry check
+    if (!user.otp || !user.otpExpire || Date.now() > user.otpExpire) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired or not found",
+      });
+    }
+
+    if (Number(user.otp) !== Number(otp)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    // ✅ OTP correct → clear OTP fields
+    user.otp = null;
+    user.otpExpire = null;
+    await user.save();
+
     if (expoToken) {
       await saveExpoToken(user._id, expoToken);
     }
-
-    // 🔹 Create JWT
+    // Create JWT token
     const token = jwt.sign(
       { userId: user._id, role: "user" },
       process.env.SecretKey,
-      {
-        expiresIn: "7d",
-      }
+      { expiresIn: "7d" }
     );
 
-    delete otpStore[phone];
+    // ✅ Check KYC status
     const isKycApprove = await KYCmodel.findOne({
       $or: [{ alternatePhone: phone }, { phone }],
     });
@@ -100,19 +189,25 @@ exports.verifyOTP = async (req, res) => {
         status: isKycApprove.status, // pending / approved / rejected
       });
     }
+
     const check = await sendNotificationToSingleUser(
       expoToken,
       "Login Successfully",
       "Debt Relief India"
     );
+    // New user (no KYC yet)
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      token,
       status: "new",
+      token,
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
+    console.error("verifyOTP error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 exports.userController = async (req, res, next) => {
