@@ -122,7 +122,7 @@ exports.sendOTP = async (req, res) => {
 // };
 exports.verifyOTP = async (req, res) => {
   try {
-    const { phone, otp, FcmToken } = req.body;
+    const { phone, otp, expoToken } = req.body;
 
     // Basic validation
     if (!phone || !otp) {
