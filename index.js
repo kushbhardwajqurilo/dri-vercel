@@ -1,12 +1,11 @@
-const { cronJob } = require("./src/config/cron-job/nodeCron");
 const connectDB = require("./src/database/DB");
 
 if (process.env.VERCEL) {
-  // 👉 On Vercel: connect DB, then export app
+  // 👉 On Vercel: Only connect DB + export app
   connectDB();
   module.exports = require("./app");
 } else {
-  // 👉 Local / VPS: run with cluster + listen
+  // 👉 Local / VPS: Run with cluster + cron job
   const cluster = require("cluster");
   const os = require("os");
   const http = require("http");
@@ -15,10 +14,15 @@ if (process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
 
   if (cluster.isMaster) {
+    // 👉 Local pe hi node-cron chalega
+    const { cronJob } = require("./src/config/cron-job/nodeCron");
     cronJob.start();
+
+    // Agar chaho to multi-process cluster bhi enable kar sakte ho
     // for (let i = 0; i < numCPUs; i++) {
     //   cluster.fork();
     // }
+
     // cluster.on("exit", (worker) => {
     //   console.log(`Worker ${worker.process.pid} died, restarting...`);
     //   cluster.fork();
