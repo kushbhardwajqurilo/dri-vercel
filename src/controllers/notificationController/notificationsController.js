@@ -111,3 +111,24 @@ exports.sendNotificationToAll = async (req, res) => {
       .json({ success: false, message: error.message, error });
   }
 };
+
+// insert many notiifications
+exports.insertManyNotification = async (userIds, title, message, type) => {
+  try {
+    if (!userIds || userIds.length === 0) {
+      return { success: false, message: "No UserIds provide" };
+    }
+    const notifications = userIds.map((_id) => ({
+      userId: _id,
+      title,
+      message,
+      type,
+    }));
+
+    const result = await NotificationModel.insertMany(notifications);
+    return { success: true, message: "Insert success", count: result.length };
+  } catch (error) {
+    console.error("Error inserting notifications:", error);
+    return { success: false, message: error.message };
+  }
+};
