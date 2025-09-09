@@ -1,3 +1,4 @@
+const { cronJob } = require("./src/config/cron-job/nodeCron");
 const connectDB = require("./src/database/DB");
 
 if (process.env.VERCEL) {
@@ -14,13 +15,14 @@ if (process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
 
   if (cluster.isMaster) {
-    for (let i = 0; i < numCPUs; i++) {
-      cluster.fork();
-    }
-    cluster.on("exit", (worker) => {
-      console.log(`Worker ${worker.process.pid} died, restarting...`);
-      cluster.fork();
-    });
+    cronJob.start();
+    // for (let i = 0; i < numCPUs; i++) {
+    //   cluster.fork();
+    // }
+    // cluster.on("exit", (worker) => {
+    //   console.log(`Worker ${worker.process.pid} died, restarting...`);
+    //   cluster.fork();
+    // });
   } else {
     connectDB().then(() => {
       http.createServer(app).listen(PORT, () => {
