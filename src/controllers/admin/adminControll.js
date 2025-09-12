@@ -7,7 +7,6 @@ const {
 const fs = require("fs");
 const cloudinary = require("../../utilitis/cloudinary");
 const adminAndLoginBannerModel = require("../../models/adminAndLoginBannerModel");
-const { json } = require("stream/consumers");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {

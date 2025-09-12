@@ -1,6 +1,9 @@
 const {
   sentNotificationToMultipleUsers,
 } = require("../../config/expo-push-notification/expoNotification");
+const {
+  customeNoticationModel,
+} = require("../../models/contactYourAdvocateModel");
 const fcmTokenModel = require("../../models/fcmTokenModel");
 const NotificationModel = require("../../models/NotificationModel");
 
@@ -130,5 +133,70 @@ exports.insertManyNotification = async (userIds, title, message, type) => {
   } catch (error) {
     console.error("Error inserting notifications:", error);
     return { success: false, message: error.message };
+  }
+};
+
+//  custom notification by admin
+exports.customeNotification = async (req, res) => {
+  try {
+    console.log("body", req.body);
+    const { message, type } = req.body;
+
+    if (!message || message.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "message missing",
+      });
+    }
+    const updateFields = {};
+    if (type === "submit") {
+      updateFields["kyc_submit"] = message;
+    } else if (type === "approve") {
+      updateFields["kyc_approve"] = message;
+    } else if (type === "invoice") {
+      updateFields["invoice"] = message;
+    } else {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid notification type" });
+    }
+    const setupMessage = await customeNoticationModel.findOneAndUpdate(
+      {},
+      { $set: updateFields },
+      { new: true, upsert: true }
+    );
+
+    if (!setupMessage) {
+      return res.status(400).json({
+        success: false,
+        message: "failed to setup message",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification setup successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
+    });
+  }
+};
+
+//get custom notifiation
+exports.getCustomNotification = async (req, res) => {
+  try {
+    const data = await customeNoticationModel.find({});
+    return res.status(200).json({ success: true, data: data });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
+    });
   }
 };

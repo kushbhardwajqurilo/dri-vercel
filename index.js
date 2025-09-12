@@ -15,14 +15,12 @@ if (process.env.VERCEL) {
 
   if (cluster.isMaster) {
     // 👉 Local pe hi node-cron chalega
-    const { cronJob } = require("./src/config/cron-job/nodeCron");
-    cronJob.start();
-
+    // const { cronJob } = require("./src/config/cron-job/nodeCron");
+    // cronJob.start();
     // Agar chaho to multi-process cluster bhi enable kar sakte ho
     // for (let i = 0; i < numCPUs; i++) {
     //   cluster.fork();
     // }
-
     // cluster.on("exit", (worker) => {
     //   console.log(`Worker ${worker.process.pid} died, restarting...`);
     //   cluster.fork();
